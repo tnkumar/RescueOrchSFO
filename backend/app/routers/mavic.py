@@ -8,6 +8,8 @@ import logging
 import threading
 from typing import Optional
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException, Request
@@ -48,7 +50,7 @@ def set_mavic_velocity(cmd: MavicVelocityCommand):
     Pitch: forward/backward, Roll: strafe, Yaw: rotate, Vertical: altitude change.
     """
     _state["last_command"] = {"type": "velocity", "data": cmd.model_dump()}
-    # TODO: Forward to Webots Mavic controller (e.g., via socket/zeromq)
+    logger.info(f"📥 MAVIC VELOCITY command received: pitch={cmd.pitch:.2f}, roll={cmd.roll:.2f}, yaw={cmd.yaw:.2f}, vertical={cmd.vertical:.2f}")
     return {"status": "ok", "command": _state["last_command"]}
 
 
@@ -57,6 +59,7 @@ def set_mavic_altitude(cmd: MavicAltitudeCommand):
     """Set target altitude for Mavic drone in meters."""
     _state["altitude"] = cmd.altitude
     _state["last_command"] = {"type": "altitude", "data": cmd.model_dump()}
+    logger.info(f"📥 MAVIC ALTITUDE command received: {cmd.altitude:.2f}m")
     return {"status": "ok", "target_altitude": cmd.altitude}
 
 
@@ -71,24 +74,28 @@ def mavic_action(cmd: MavicActionCommand):
     elif cmd.action == "land":
         _state["altitude"] = 0.0
     _state["last_command"] = {"type": "action", "data": cmd.model_dump()}
+    logger.info(f"📥 MAVIC ACTION command received: {cmd.action.upper()}, flying={_state['flying']}")
     return {"status": "ok", "action": cmd.action, "flying": _state["flying"]}
 
 
 @router.post("/takeoff")
 def mavic_takeoff():
     """Convenience endpoint: command Mavic to take off."""
+    logger.info("📥 MAVIC TAKEOFF endpoint called")
     return mavic_action(MavicActionCommand(action="takeoff"))
 
 
 @router.post("/land")
 def mavic_land():
     """Convenience endpoint: command Mavic to land."""
+    logger.info("📥 MAVIC LAND endpoint called")
     return mavic_action(MavicActionCommand(action="land"))
 
 
 @router.post("/hover")
 def mavic_hover():
     """Convenience endpoint: command Mavic to hover in place."""
+    logger.info("📥 MAVIC HOVER endpoint called")
     return mavic_action(MavicActionCommand(action="hover"))
 
 
@@ -96,6 +103,7 @@ def mavic_hover():
 def get_mavic_command():
     """Get last command for Webots controller to poll."""
     cmd = _state.get("last_command") or {"type": "velocity", "data": {"pitch": 0, "roll": 0, "yaw": 0, "vertical": 0}}
+    logger.debug(f"🔄 Controller polling /mavic/command → returning: {cmd.get('type')}")
     return {
         **cmd,
         "target_altitude": _state["altitude"],

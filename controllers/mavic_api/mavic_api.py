@@ -34,6 +34,8 @@ def send_camera_frame(api_url, data, width, height):
 def main():
     robot = Robot()
     timestep = int(robot.getBasicTimeStep())
+    
+    print("[mavic_api] Initializing Mavic 2 Pro controller...")
 
     # Devices
     imu = robot.getDevice("inertial unit")
@@ -44,6 +46,7 @@ def main():
     gyro.enable(timestep)
     camera_roll = robot.getDevice("camera roll")
     camera_pitch = robot.getDevice("camera pitch")
+    print("[mavic_api] ✓ Sensors initialized")
 
     # Camera for live feed - find device with getImageArray (Camera)
     camera = None
@@ -54,6 +57,7 @@ def main():
             break
     if camera:
         camera.enable(CAMERA_SAMPLE_PERIOD_MS)
+        print("[mavic_api] ✓ Camera initialized")
     front_left_led = robot.getDevice("front left led")
     front_right_led = robot.getDevice("front right led")
 
@@ -65,6 +69,7 @@ def main():
     for m in [front_left, front_right, rear_left, rear_right]:
         m.setPosition(float("inf"))
         m.setVelocity(1.0)
+    print("[mavic_api] ✓ Propellers initialized")
 
     # Constants (from mavic2pro C controller)
     K_VERTICAL_THRUST = 68.5
@@ -85,30 +90,50 @@ def main():
     cmd = None
     api_connected = False
     camera_counter = 0
+    
+    # Persistent velocity disturbances (updated by velocity commands)
+    roll_disturbance = 0.0
+    pitch_disturbance = 0.0
+    yaw_disturbance = 0.0
+    
+    print(f"[mavic_api] Polling API at {api_url}/mavic/command")
 
     while robot.step(timestep) != -1:
         t = robot.getTime()
         poll_counter += 1
 
-        # Poll API every ~32ms for responsive control
-        if poll_counter >= 4:
+        # Poll API every timestep (~8ms) for immediate response
+        if poll_counter >= 1:
             poll_counter = 0
             cmd = fetch_command(api_url)
             if cmd and not api_connected:
                 api_connected = True
                 print("[mavic_api] Connected to Rescue Command Center API")
             if cmd:
-                if cmd.get("flying"):
-                    target_altitude = cmd.get("target_altitude", target_altitude)
+                cmd_type = cmd.get("type")
+                flying = cmd.get("flying", False)
+                
+                if cmd_type == "action":
+                    action = cmd.get("data", {}).get("action", "")
+                    print(f"[mavic_api] ⚡ ACTION command: {action}, flying={flying}")
+                    
+                if flying:
+                    new_altitude = cmd.get("target_altitude", target_altitude)
+                    if new_altitude != target_altitude:
+                        print(f"[mavic_api] 📏 Altitude change: {target_altitude:.2f}m → {new_altitude:.2f}m")
+                    target_altitude = new_altitude
+                    
                 data = cmd.get("data", {})
-                if cmd.get("type") == "velocity":
-                    target_altitude = target_altitude + 0.02 * data.get("vertical", 0)
+                if cmd_type == "velocity":
+                    pitch_disturbance = data.get("pitch", 0)
+                    roll_disturbance = data.get("roll", 0)
+                    yaw_disturbance = data.get("yaw", 0)
+                    vertical = data.get("vertical", 0)
+                    if pitch_disturbance != 0 or roll_disturbance != 0 or yaw_disturbance != 0 or vertical != 0:
+                        print(f"[mavic_api] 🚁 VELOCITY command: pitch={pitch_disturbance:.2f}, roll={roll_disturbance:.2f}, yaw={yaw_disturbance:.2f}, vertical={vertical:.2f}")
+                    target_altitude = target_altitude + 0.02 * vertical
                     target_altitude = max(0.0, min(50.0, target_altitude))
 
-        data = cmd.get("data", {}) if cmd else {}
-        roll_disturbance = data.get("roll", 0)
-        pitch_disturbance = data.get("pitch", 0)
-        yaw_disturbance = data.get("yaw", 0)
 
         roll, pitch, _ = imu.getRollPitchYaw()
         altitude = gps.getValues()[2]
@@ -160,3 +185,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -1,5 +1,6 @@
 """Tiago robot control API endpoints."""
 
+import logging
 from fastapi import APIRouter, HTTPException
 from app.schemas import (
     TiagoVelocityCommand,
@@ -10,6 +11,10 @@ from app.schemas import (
     TiagoActionCommand,
     TiagoStatus,
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tiago", tags=["Tiago Robot"])
 
@@ -50,7 +55,7 @@ def set_tiago_velocity(cmd: TiagoVelocityCommand, robot_id: str = "1"):
     """
     state = _get_state(robot_id)
     state["last_command"] = {"type": "velocity", "data": cmd.model_dump()}
-    # TODO: Forward to Webots Tiago controller
+    logger.info(f"📥 TIAGO-{robot_id} VELOCITY command received: linear_x={cmd.linear_x:.2f}, linear_y={cmd.linear_y:.2f}, angular={cmd.angular:.2f}")
     return {"status": "ok", "command": state["last_command"], "robot_id": robot_id}
 
 
@@ -62,6 +67,7 @@ def set_tiago_arm(cmd: TiagoArmCommand, robot_id: str = "1"):
         raise HTTPException(400, f"Invalid arm: {cmd.arm}")
     state = _get_state(robot_id)
     state["last_command"] = {"type": "arm", "data": cmd.model_dump()}
+    logger.info(f"📥 TIAGO-{robot_id} ARM command received: {cmd.arm} arm, positions={cmd.joint_positions}")
     return {"status": "ok", "command": state["last_command"], "robot_id": robot_id}
 
 
@@ -71,6 +77,7 @@ def set_tiago_head(cmd: TiagoHeadCommand, robot_id: str = "1"):
     """Control Tiago head pan and tilt. robot_id: 1, 2, or 3."""
     state = _get_state(robot_id)
     state["last_command"] = {"type": "head", "data": cmd.model_dump()}
+    logger.info(f"📥 TIAGO-{robot_id} HEAD command received: pan={cmd.head_1:.2f}, tilt={cmd.head_2:.2f}")
     return {"status": "ok", "command": state["last_command"], "robot_id": robot_id}
 
 
@@ -80,6 +87,7 @@ def set_tiago_torso(cmd: TiagoTorsoCommand, robot_id: str = "1"):
     """Control Tiago torso lift height. robot_id: 1, 2, or 3."""
     state = _get_state(robot_id)
     state["last_command"] = {"type": "torso", "data": cmd.model_dump()}
+    logger.info(f"📥 TIAGO-{robot_id} TORSO command received: height={cmd.height:.2f}m")
     return {"status": "ok", "command": state["last_command"], "robot_id": robot_id}
 
 
@@ -93,6 +101,7 @@ def set_tiago_gripper(cmd: TiagoGripperCommand, robot_id: str = "1"):
         raise HTTPException(400, f"Invalid action: {cmd.action}. Must be 'open' or 'close'")
     state = _get_state(robot_id)
     state["last_command"] = {"type": "gripper", "data": cmd.model_dump()}
+    logger.info(f"📥 TIAGO-{robot_id} GRIPPER command received: {cmd.arm} → {cmd.action.upper()}")
     return {"status": "ok", "command": state["last_command"], "robot_id": robot_id}
 
 
@@ -105,6 +114,7 @@ def tiago_action(cmd: TiagoActionCommand, robot_id: str = "1"):
         raise HTTPException(400, f"Invalid action: {cmd.action}. Must be one of: {valid}")
     state = _get_state(robot_id)
     state["last_command"] = {"type": "action", "data": cmd.model_dump()}
+    logger.info(f"📥 TIAGO-{robot_id} ACTION command received: {cmd.action.upper()}")
     return {"status": "ok", "action": cmd.action, "robot_id": robot_id}
 
 
@@ -112,6 +122,7 @@ def tiago_action(cmd: TiagoActionCommand, robot_id: str = "1"):
 @router.post("/stop")
 def tiago_stop(robot_id: str = "1"):
     """Convenience endpoint: stop Tiago base movement. robot_id: 1, 2, or 3."""
+    logger.info(f"📥 TIAGO-{robot_id} STOP endpoint called")
     return tiago_action(TiagoActionCommand(action="stop"), robot_id=robot_id)
 
 
@@ -120,4 +131,6 @@ def tiago_stop(robot_id: str = "1"):
 def get_tiago_command(robot_id: str = "1"):
     """Get last command for Webots controller to poll. robot_id: 1, 2, or 3."""
     state = _get_state(robot_id)
-    return state.get("last_command") or {"type": "velocity", "data": {"linear_x": 0, "linear_y": 0, "angular": 0}}
+    cmd = state.get("last_command") or {"type": "velocity", "data": {"linear_x": 0, "linear_y": 0, "angular": 0}}
+    logger.debug(f"🔄 Controller polling /tiago/{robot_id}/command → returning: {cmd.get('type')}")
+    return cmd
