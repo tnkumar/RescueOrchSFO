@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { tiago } from '../api'
+import { tiago, supervisor } from '../api'
 import './TiagoPanel.css'
 
 interface TiagoPanelProps {
@@ -109,9 +109,12 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
             onClick={() => {
               const x = parseFloat(moveX) || 0
               const y = parseFloat(moveY) || 0
-              tiago.moveTo(x, y, robotId)
+              const target = `tiago${robotId}` as 'tiago1' | 'tiago2' | 'tiago3'
+              tiago.action('home_arms', robotId)
+                .then(() => new Promise<void>(r => setTimeout(r, 2000)))
+                .then(() => supervisor.teleport(target, { x, y, z: 0.095 }))
                 .then(() => setError(null))
-                .catch((e) => setError(e?.message || 'Move failed'))
+                .catch((e) => setError(e?.message || 'Command failed'))
             }}
           >
             Go
@@ -139,7 +142,7 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
                 Stop
               </button>
             </div>
-            <p className="hint">Move {displayName} only via &quot;Move to&quot; X, Y and <strong>Go</strong> above. Use Stop to halt.</p>
+            <p className="hint">Arms go to home, then {displayName} teleports to X, Y when you press <strong>Go</strong>. Use Stop to halt.</p>
           </>
         )}
 

@@ -21,10 +21,10 @@ export const mavic = {
   hover: () => fetchJson('/mavic/hover', { method: 'POST' }),
 };
 
-// Trigger: call LLM with Guidance to LLM prompt
+// Trigger: call LLM with Guidance, then execute commands in world (1s gap)
 export const trigger = {
   run: () =>
-    fetchJson<{ ok: boolean; response: string }>('/trigger/run', { method: 'POST' }),
+    fetchJson<{ ok: boolean; response: string; steps?: string[] }>('/trigger/run', { method: 'POST' }),
 };
 
 // Supervisor API - teleport drone or Tiagos to coordinates (requires Webots supervisor running)

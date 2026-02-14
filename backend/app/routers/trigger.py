@@ -1,7 +1,9 @@
-"""Trigger endpoint: call LLM with Guidance to LLM.md as prompt."""
+"""Trigger endpoint: call LLM with Guidance to LLM.md as prompt, then execute commands in world."""
 
 import logging
 import os
+import re
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -93,9 +95,59 @@ def trigger_rescue():
 
     prompt = (
         guidance
-        + "\n\n---\n\nTrigger: Start rescue operation. Based on the guidance above, respond with the rescue sequence and any instructions."
+        + "\n\n---\n\nTrigger: Start rescue operation. Based on the guidance above, respond with the rescue sequence and any instructions.\n\n"
+        "At the end of your response, add a new line with exactly: COMMANDS:\n"
+        "Then one line per command in this exact format: TELEPORT_TIAGO <robot_id> <x> <y>\n"
+        "Use robot_id 1, 2, or 3 and world coordinates x, y (numbers). Example:\n"
+        "COMMANDS:\nTELEPORT_TIAGO 1 4 1\nTELEPORT_TIAGO 2 5 2\nTELEPORT_TIAGO 3 6 3"
     )
     logger.info("Trigger: loading complete, calling Gemini with Guidance to LLM")
     response_text = _call_llm(prompt)
-    logger.info("Trigger: received response from Gemini, returning to client")
-    return {"ok": True, "response": response_text}
+    logger.info("Trigger: received response from Gemini, parsing and executing commands")
+    steps = _parse_and_execute_commands(response_text)
+    logger.info("Trigger: commands executed, returning to client")
+    return {"ok": True, "response": response_text, "steps": steps}
+
+
+def _parse_and_execute_commands(response_text: str) -> list[str]:
+    """
+    Parse COMMANDS: block from LLM response (lines TELEPORT_TIAGO n x y) and
+    send each to the world (supervisor) with 1 sec gap. Return list of step descriptions for UI.
+    """
+    steps = []
+    # Find COMMANDS: block (case-insensitive)
+    match = re.search(r"COMMANDS:\s*\n(.*?)(?=\n\n|\Z)", response_text, re.IGNORECASE | re.DOTALL)
+    if not match:
+        logger.info("Trigger: no COMMANDS block in response, skipping execution")
+        return steps
+    block = match.group(1).strip()
+    # Parse lines: TELEPORT_TIAGO <1|2|3> <x> <y>
+    pattern = re.compile(r"TELEPORT_TIAGO\s+([123])\s+([\d.-]+)\s+([\d.-]+)", re.IGNORECASE)
+    commands = []
+    for line in block.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = pattern.match(line)
+        if m:
+            robot_id, x, y = m.group(1), float(m.group(2)), float(m.group(3))
+            commands.append((int(robot_id), x, y))
+    if not commands:
+        return steps
+    # Execute via supervisor (set its _command so Webots controller picks it up)
+    try:
+        from app.routers import supervisor as sup_router
+    except ImportError:
+        logger.warning("Trigger: could not import supervisor, skipping command execution")
+        return steps
+    for i, (robot_id, x, y) in enumerate(commands, 1):
+        desc = f"{i}. Teleport Tiago {robot_id} to ({x}, {y})"
+        steps.append(desc)
+        logger.info("Trigger: %s", desc)
+        sup_router._command = {
+            "type": "teleport",
+            "target": f"tiago{robot_id}",
+            "data": {"x": x, "y": y, "z": 0.095},
+        }
+        time.sleep(1)
+    return steps

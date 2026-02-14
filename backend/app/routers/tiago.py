@@ -139,17 +139,17 @@ def tiago_stop(robot_id: str = "1"):
 
 
 @router.post("/{robot_id}/move_to")
-def tiago_move_to(robot_id: str, x: float, y: float, speed: float = 0.75):
+def tiago_move_to(robot_id: str, x: float, y: float, speed: float = 1.1):
     """
     Command Tiago to drive to (x, y) at a constant speed instead of teleporting.
-    Controller will drive until within ~0.2 m, then call move_to_done.
+    Controller drives straight after pointing; stops (no move, no rotate) at destination.
     """
     if robot_id not in ("1", "2", "3"):
         raise HTTPException(400, "robot_id must be 1, 2, or 3")
     state = _get_state(robot_id)
     state["last_command"] = {
         "type": "move_to",
-        "data": {"target_x": float(x), "target_y": float(y), "speed": max(0.2, min(1.2, float(speed)))},
+        "data": {"target_x": float(x), "target_y": float(y), "speed": max(0.3, min(1.5, float(speed)))},
     }
     logger.info(f"📥 TIAGO-{robot_id} MOVE TO ({x:.2f}, {y:.2f}) at speed {speed:.2f} m/s")
     return {"status": "ok", "robot_id": robot_id, "target": {"x": x, "y": y}, "speed": speed}

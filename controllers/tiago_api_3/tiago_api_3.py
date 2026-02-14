@@ -250,15 +250,16 @@ def main():
                                 arm_left_joints[i].setPosition(p)
                             last_move_to_target = target_key
                             print("[tiago_api_3]   → Arms to home before move")
-                        speed = max(0.2, min(1.2, float(data.get("speed", 0.75))))
+                        speed = max(0.3, min(1.5, float(data.get("speed", 1.1))))
                         dx = tx - cx
                         dy = ty - cy
                         dist = math.sqrt(dx * dx + dy * dy)
-                        if dist < 0.2:
+                        ARRIVAL_DIST = 0.25
+                        if dist < ARRIVAL_DIST:
                             linear_x = linear_y = angular = 0.0
                             last_move_to_target = None
                             post_move_to_done(api_url, "3")
-                            print("[tiago_api_3] 🎯 move_to arrived")
+                            print("[tiago_api_3] 🎯 move_to arrived — stopped (no move, no rotate)")
                         else:
                             desired = math.atan2(dy, dx)
                             angle_err = _angle_norm(desired - yaw)

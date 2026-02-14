@@ -87,6 +87,29 @@
   margin: 0;
 }
 
+.trigger-steps {
+  margin-bottom: 1rem;
+}
+
+.trigger-steps h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-green);
+}
+
+.trigger-steps-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.trigger-steps-list li {
+  margin-bottom: 0.25rem;
+}
+
 .trigger-response {
   margin: 0;
   font-size: 0.85rem;

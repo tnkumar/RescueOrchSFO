@@ -6,16 +6,19 @@ export function TriggerButton() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [response, setResponse] = useState<string | null>(null)
+  const [steps, setSteps] = useState<string[]>([])
   const [modalOpen, setModalOpen] = useState(false)
 
   const runTrigger = async () => {
     setLoading(true)
     setError(null)
     setResponse(null)
+    setSteps([])
     setModalOpen(true)
     try {
       const data = await trigger.run()
       setResponse(data.response ?? 'No response.')
+      setSteps(data.steps ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Trigger failed')
     } finally {
@@ -27,6 +30,7 @@ export function TriggerButton() {
     setModalOpen(false)
     setError(null)
     setResponse(null)
+    setSteps([])
   }
 
   return (
@@ -51,8 +55,18 @@ export function TriggerButton() {
               </button>
             </div>
             <div className="trigger-modal-body">
-              {loading && <p className="trigger-loading">Calling LLM with Guidance to LLM…</p>}
+              {loading && <p className="trigger-loading">Calling LLM, then sending commands to world (1s gap)…</p>}
               {error && <p className="trigger-error">{error}</p>}
+              {steps.length > 0 && (
+                <div className="trigger-steps">
+                  <h4>Commands sent to world</h4>
+                  <ol className="trigger-steps-list">
+                    {steps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               {response && <pre className="trigger-response">{response}</pre>}
             </div>
           </div>
