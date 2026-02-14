@@ -19,6 +19,19 @@ def fetch_command(api_url, robot_id="3"):
         return None
 
 
+def send_position(api_url, robot_id, x, y, z):
+    """Send position to backend for UI display."""
+    try:
+        url = f"{api_url}/tiago/{robot_id}/position"
+        data = json.dumps({"x": x, "y": y, "z": z}).encode()
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=0.3) as resp:
+            pass
+    except (urllib.error.URLError, OSError):
+        pass
+
+
 def main():
     robot = Robot()
     timestep = int(robot.getBasicTimeStep())
@@ -72,6 +85,20 @@ def main():
         joint.setPosition(0)
     print("[tiago_api_3] ✓ Left arm joints initialized")
 
+    # Astra RGBD camera - must enable for camera panels to display
+    try:
+        rgb_camera = robot.getDevice("Astra rgb")
+        rgb_camera.enable(timestep)
+        print("[tiago_api_3] ✓ Astra rgb camera enabled")
+    except Exception:
+        print("[tiago_api_3] ⚠ Astra rgb camera not found")
+    try:
+        depth_camera = robot.getDevice("Astra depth")
+        depth_camera.enable(timestep)
+        print("[tiago_api_3] ✓ Astra depth camera enabled")
+    except Exception:
+        print("[tiago_api_3] ⚠ Astra depth camera not found")
+
     # Grippers (if available) - Tiago++ uses different naming
     gripper_left = None
     gripper_right = None
@@ -92,6 +119,7 @@ def main():
         api_url = DEFAULT_API
 
     poll_counter = 0
+    pos_counter = 0
     cmd = None
     linear_x = linear_y = angular = 0.0
     api_connected = False
@@ -174,6 +202,14 @@ def main():
 
         wheel_left.setVelocity(max(-10, min(10, left_vel)))
         wheel_right.setVelocity(max(-10, min(10, right_vel)))
+
+        # Send position to backend for UI (~4 times/sec)
+        pos_counter += 1
+        if pos_counter >= 31:
+            pos_counter = 0
+            pos = robot.getPosition()
+            if pos and len(pos) >= 3:
+                send_position(api_url, "3", pos[0], pos[1], pos[2])
 
 
 if __name__ == "__main__":

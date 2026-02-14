@@ -1,0 +1,29 @@
+.robot-coordinates-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+.robot-coordinates-bar.error {
+  color: var(--accent-red);
+}
+
+.robot-coordinates-bar .coord-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.robot-coordinates-bar .coord-value {
+  color: var(--text-primary);
+}
+
+.robot-coordinates-bar .coord-sep {
+  color: var(--border);
+  margin: 0 0.25rem;
+}

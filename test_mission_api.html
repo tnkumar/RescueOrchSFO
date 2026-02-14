@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Mission API</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        pre {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .success {
+            color: #22c55e;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Mission API Debug Tool</h1>
+
+    <button onclick="startMission()">Start Mission</button>
+    <button onclick="getStatus()">Get Status</button>
+    <button onclick="stopMission()">Stop Mission</button>
+
+    <h2>Response:</h2>
+    <pre id="output">Click a button to test the API...</pre>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000';
+
+        async function startMission() {
+            try {
+                const response = await fetch(`${API_URL}/mission/start`, { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('output').innerHTML =
+                    `<span class="success">✅ Mission Started</span>\n\n` +
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('output').innerHTML =
+                    `<span class="error">❌ Error: ${error}</span>`;
+            }
+        }
+
+        async function getStatus() {
+            try {
+                const response = await fetch(`${API_URL}/mission/status`);
+                const data = await response.json();
+
+                // Check if robots exist
+                const robotCount = data.robots ? Object.keys(data.robots).length : 0;
+
+                document.getElementById('output').innerHTML =
+                    `<span class="success">✅ Status Retrieved</span>\n` +
+                    `Active: ${data.active}\n` +
+                    `Robots: ${robotCount}\n` +
+                    `Incidents: ${data.incidents?.total || 0}\n\n` +
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('output').innerHTML =
+                    `<span class="error">❌ Error: ${error}</span>`;
+            }
+        }
+
+        async function stopMission() {
+            try {
+                const response = await fetch(`${API_URL}/mission/stop`, { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('output').innerHTML =
+                    `<span class="success">✅ Mission Stopped</span>\n\n` +
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('output').innerHTML =
+                    `<span class="error">❌ Error: ${error}</span>`;
+            }
+        }
+
+        // Auto-fetch status every 2 seconds
+        setInterval(async () => {
+            const status = document.getElementById('output').textContent;
+            if (!status.includes('Error')) {
+                // Silently update in background
+                try {
+                    const response = await fetch(`${API_URL}/mission/status`);
+                    const data = await response.json();
+                    console.log('Auto-refresh:', data);
+                } catch (e) {
+                    console.error('Auto-refresh failed:', e);
+                }
+            }
+        }, 2000);
+    </script>
+</body>
+
+</html>

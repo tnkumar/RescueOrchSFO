@@ -32,6 +32,13 @@ class MavicStatus(BaseModel):
     position: Optional[dict] = None
 
 
+class PositionUpdate(BaseModel):
+    """Position update from Webots controller (x, y, z in world coords)."""
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+
+
 # --- Tiago (Robot) Schemas ---
 
 class TiagoVelocityCommand(BaseModel):

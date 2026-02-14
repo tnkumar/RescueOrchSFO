@@ -1,0 +1,22 @@
+.error-boundary-container {
+    padding: 20px;
+    color: red;
+    background-color: #fff0f0;
+    border: 1px solid red;
+    margin: 20px;
+    border-radius: 8px;
+}
+
+.error-details {
+    white-space: pre-wrap;
+}
+
+.error-reload-btn {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}

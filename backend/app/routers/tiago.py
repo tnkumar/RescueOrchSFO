@@ -10,6 +10,7 @@ from app.schemas import (
     TiagoGripperCommand,
     TiagoActionCommand,
     TiagoStatus,
+    PositionUpdate,
 )
 
 # Configure logging
@@ -43,6 +44,14 @@ def get_tiago_status(robot_id: str = "1"):
         position=state["position"],
         battery=100.0,
     )
+
+
+@router.post("/{robot_id}/position")
+def update_tiago_position(robot_id: str, pos: PositionUpdate):
+    """Receive position update from Webots controller."""
+    state = _get_state(robot_id)
+    state["position"] = {"x": round(pos.x, 4), "y": round(pos.y, 4), "z": round(pos.z, 4)}
+    return {"status": "ok", "robot_id": robot_id}
 
 
 @router.post("/{robot_id}/velocity")

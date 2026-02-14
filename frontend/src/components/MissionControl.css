@@ -1,0 +1,390 @@
+.mission-control {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.mission-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mission-header h1 {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+}
+
+.mission-header p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1.1rem;
+}
+
+.camera-feed-section {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.camera-feed-section h2 {
+  margin: 0 0 15px 0;
+  font-size: 1.5rem;
+  color: #1f2937;
+}
+
+.camera-feed {
+  width: 100%;
+  max-width: 800px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #000;
+}
+
+.control-panel {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-start {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  font-size: 18px;
+  padding: 15px 40px;
+}
+
+.btn-stop {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 18px;
+  padding: 15px 40px;
+}
+
+.incident-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-incident {
+  background: white;
+  color: #1f2937;
+  border: 2px solid #e5e7eb;
+}
+
+.btn-incident.fire {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.btn-incident.fire:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-incident.victim {
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.btn-incident.victim:hover:not(:disabled) {
+  background: #f97316;
+  color: white;
+}
+
+.btn-incident.gas {
+  border-color: #eab308;
+  color: #eab308;
+}
+
+.btn-incident.gas:hover:not(:disabled) {
+  background: #eab308;
+  color: white;
+}
+
+.ai-analysis {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.ai-analysis h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.3rem;
+}
+
+.ai-analysis p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 1.05rem;
+}
+
+.incidents-section,
+.robots-section {
+  margin-bottom: 30px;
+}
+
+.incidents-section h2,
+.robots-section h2 {
+  margin: 0 0 20px 0;
+  font-size: 1.8rem;
+  color: #1f2937;
+}
+
+.incidents-grid,
+.robots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.incident-card,
+.robot-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.incident-card:hover,
+.robot-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.incident-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.incident-type {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+
+.incident-severity {
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.incident-location {
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.incident-description {
+  color: #4b5563;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.robot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.robot-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #1f2937;
+}
+
+.robot-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.robot-status.ready {
+  background: #22c55e;
+  color: white;
+}
+
+.robot-status.assigned {
+  background: #3b82f6;
+  color: white;
+}
+
+.robot-status.executing {
+  background: #f97316;
+  color: white;
+}
+
+.robot-status.surveillance {
+  background: #06b6d4;
+  color: white;
+}
+
+.robot-status.extinguishing {
+  background: #ef4444;
+  color: white;
+}
+
+.robot-status.complete {
+  background: #8b5cf6;
+  color: white;
+}
+
+.robot-task {
+  margin-bottom: 12px;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.robot-progress {
+  margin-bottom: 12px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background: #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+}
+
+.progress-text {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.robot-position {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.welcome-message {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-message h2 {
+  color: #1f2937;
+  margin-bottom: 20px;
+}
+
+.welcome-message p {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+}
+
+.welcome-message ul {
+  list-style: none;
+  padding: 0;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.welcome-message li {
+  padding: 12px;
+  color: #4b5563;
+  font-size: 1.05rem;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .mission-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .incidents-grid,
+  .robots-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel {
+    flex-direction: column;
+  }
+
+  .incident-buttons {
+    flex-direction: column;
+  }
+}
+
+.camera-controls {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.btn-analyze {
+  background-color: #8b5cf6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-analyze:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-text {
+  text-align: center;
+  color: #6b7280;
+  padding: 20px;
+}

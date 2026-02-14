@@ -20,12 +20,18 @@ from app.schemas import (
     MavicAltitudeCommand,
     MavicActionCommand,
     MavicStatus,
+    PositionUpdate,
+)
+from app.services.dependencies import get_ai_coordinator
+
+router = APIRouter(
+    prefix="/mavic",
+    tags=["Mavic Control"],
+    responses={404: {"description": "Not found"}},
 )
 
-router = APIRouter(prefix="/mavic", tags=["Mavic Drone"])
-
 # In-memory state (replace with Webots controller integration)
-_state = {"flying": False, "altitude": 0.0, "connected": True, "last_command": None}
+_state = {"flying": False, "altitude": 0.0, "connected": True, "last_command": None, "position": None}
 
 # Camera stream state
 _camera_frame: Optional[bytes] = None
@@ -35,12 +41,24 @@ _camera_lock = threading.Lock()
 @router.get("/status", response_model=MavicStatus)
 def get_mavic_status():
     """Get current Mavic drone status."""
+    pos = _state.get("position")
+    if pos is None and _state["flying"]:
+        pos = {"x": 0.0, "y": 0.0, "z": _state["altitude"]}
     return MavicStatus(
         connected=_state["connected"],
         flying=_state["flying"],
         altitude=_state["altitude"],
-        position={"x": 0, "y": 0, "z": _state["altitude"]} if _state["flying"] else None,
+        position=pos,
     )
+
+
+@router.post("/position")
+def update_mavic_position(pos: PositionUpdate):
+    """Receive position update from Webots controller (GPS)."""
+    global _state
+    _state["position"] = {"x": round(pos.x, 4), "y": round(pos.y, 4), "z": round(pos.z, 4)}
+    _state["altitude"] = pos.z
+    return {"status": "ok"}
 
 
 @router.post("/velocity")
@@ -102,8 +120,14 @@ def mavic_hover():
 @router.get("/command")
 def get_mavic_command():
     """Get last command for Webots controller to poll."""
+    global _state
     cmd = _state.get("last_command") or {"type": "velocity", "data": {"pitch": 0, "roll": 0, "yaw": 0, "vertical": 0}}
     logger.debug(f"🔄 Controller polling /mavic/command → returning: {cmd.get('type')}")
+    
+    # Clear action commands after they're read once (to prevent re-processing)
+    if cmd.get("type") == "action":
+        _state["last_command"] = None
+    
     return {
         **cmd,
         "target_altitude": _state["altitude"],
@@ -111,43 +135,71 @@ def get_mavic_command():
     }
 
 
+
+def _process_frame_sync(body_bytes: bytes, width: int, height: int) -> bytes:
+    """Process raw image bytes to JPEG (CPU bound)."""
+    expected_bgra = width * height * 4
+    expected_rgb = width * height * 3
+    
+    if len(body_bytes) == expected_bgra:
+        try:
+            # Try RGBX (4 bytes per pixel, ignore alpha)
+            # Webots BGRA -> PIL RGBX (B=R, G=G, R=B) -> Swap channels
+            img = Image.frombytes("RGBX", (width, height), body_bytes)
+            # R, G, B, X = img.split() # No, RGBX splits to R, G, B (X is ignored)
+            # Actually, split() on RGBX gives R,G,B? Let's check docs or be safe.
+            # Convert to RGBA first to be sure
+            img = img.convert("RGBA")
+            r, g, b, a = img.split()
+            # If input was BGRA: R=B, G=G, B=R. So we swap R and B.
+            img = Image.merge("RGB", (b, g, r))
+        except Exception as e1:
+            logger.warning(f"⚠️ Primary BGRA decode failed: {e1}. Trying fallback RGBA.")
+            try:
+                # Fallback: Just load as RGBA and convert
+                img = Image.frombytes("RGBA", (width, height), body_bytes).convert("RGB")
+            except Exception as e2:
+                logger.error(f"❌ Secondary decode failed: {e2}. Returning black frame.")
+                img = Image.new("RGB", (width, height), (0, 0, 0))
+        rgb = img
+    elif len(body_bytes) == expected_rgb:
+        img = Image.frombytes("RGB", (width, height), body_bytes)
+        rgb = img
+    else:
+        # Avoid complex logic for now, just log and fail gracefully
+        logger.error(f"❌ Size mismatch: {len(body_bytes)}. Expected {expected_bgra} (BGRA) or {expected_rgb} (RGB). Returning Black Frame.")
+        rgb = Image.new("RGB", (width, height), (0, 0, 0))
+
+    buf = io.BytesIO()
+    rgb.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
 @router.post("/camera/frame")
 async def receive_camera_frame(request: Request):
-    """Receive raw BGRA frame from Webots controller. Query: width, height (e.g. ?width=400&height=240)."""
+    """Receive raw BGRA frame from Webots controller."""
     width = int(request.query_params.get("width", 400))
     height = int(request.query_params.get("height", 240))
     body = await request.body()
-    body_bytes = bytes(body)
-    expected_bgra = width * height * 4
-    expected_rgb = width * height * 3
+    
+    # Log at DEBUG level to avoid spam
+    if hasattr(logger, "debug"):
+        logger.debug(f"📸 Frame received: {len(body)} bytes")
+    
     try:
-        if len(body_bytes) == expected_bgra:
-            img = Image.frombytes("BGRA", (width, height), body_bytes)
-            rgb = img.convert("RGB")
-        elif len(body_bytes) == expected_rgb:
-            img = Image.frombytes("RGB", (width, height), body_bytes)
-            rgb = img
-        else:
-            logger.warning(
-                "Camera frame size mismatch: expected %s (BGRA) or %s (RGB), got %s",
-                expected_bgra,
-                expected_rgb,
-                len(body_bytes),
-            )
-            raise HTTPException(
-                400,
-                f"Expected {expected_bgra} (BGRA) or {expected_rgb} (RGB) bytes, got {len(body_bytes)}",
-            )
-        buf = io.BytesIO()
-        rgb.save(buf, format="JPEG", quality=85)
-        jpeg = buf.getvalue()
+        # Offload CPU-intensive image processing to thread pool
+        loop = asyncio.get_event_loop()
+        jpeg = await loop.run_in_executor(None, _process_frame_sync, bytes(body), width, height)
+        
         with _camera_lock:
             global _camera_frame  # noqa: PLW0603
             _camera_frame = jpeg
-    except HTTPException:
-        raise
+            
     except Exception as e:
-        raise HTTPException(400, str(e))
+        logger.error(f"❌ Frame processing error: {e}")
+        # Don't crash the controller, just return error
+        return {"status": "error", "message": str(e)}
+        
     return {"status": "ok", "size": len(jpeg)}
 
 
@@ -155,15 +207,24 @@ async def _mjpeg_stream():
     """Async generator yielding MJPEG multipart stream."""
     boundary = b"--frame"
     while True:
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.033)  # ~30 FPS cap
         with _camera_lock:
             frame = _camera_frame
+        
         if frame:
-            yield boundary + b"\r\nContent-Type: image/jpeg\r\nContent-Length: " + str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
+            yield (
+                boundary + b"\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: " + str(len(frame)).encode() + b"\r\n"
+                b"\r\n" + frame + b"\r\n"
+            )
+        else:
+            # Yield empty frame or keep alive? Better to just wait.
+            pass
 
 
 @router.get("/camera/stream")
-def mavic_camera_stream():
+async def mavic_camera_stream():
     """MJPEG stream of Mavic camera feed."""
     return StreamingResponse(
         _mjpeg_stream(),

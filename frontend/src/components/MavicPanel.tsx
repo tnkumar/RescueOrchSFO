@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { mavic } from '../api'
 import './MavicPanel.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export function MavicPanel() {
   const [status, setStatus] = useState<{ connected: boolean; flying: boolean; altitude: number } | null>(null)
