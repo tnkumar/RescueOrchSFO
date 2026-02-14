@@ -49,6 +49,70 @@
   flex-shrink: 0;
 }
 
+.tiago-panel .move-to-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tiago-panel .move-to-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tiago-panel .move-to-header .move-to-label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.tiago-panel .move-to-current .move-to-value {
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+
+.tiago-panel .move-to-label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tiago-panel .move-to-coords input {
+  width: 3rem;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.tiago-panel .move-to-coords input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.tiago-panel .btn-move-to {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tiago-panel .btn-move-to:hover {
+  opacity: 0.9;
+}
+
 .tiago-panel .tabs {
   display: flex;
   border-bottom: 1px solid var(--border);

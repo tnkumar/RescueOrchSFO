@@ -62,6 +62,12 @@ The Webots console should show `[mavic_api] Connected to Rescue Command Center A
 - **Mavic:** Click **Take Off** first, then use the arrow pad and altitude buttons
 - **Tiago:** Use the arrow pad to move the base; **Stop** to halt
 
+### Tiagos not responding to UI controls
+
+1. **Start the backend first:** Run `./run_backend.sh` (or `./run.sh`) and wait until it is up. The Webots Tiago controllers poll `http://127.0.0.1:8000`; if the backend is not running, they will never receive commands.
+2. **Check the Webots console:** You should see `[tiago_api_1] Connected to Rescue Command Center API` (and similarly for 2 and 3) once the backend is reachable. If you see `Backend not reachable at ...`, the backend is not running or not on port 8000.
+3. **Same machine:** The simulation and backend must be able to reach each other. By default the controllers use `http://127.0.0.1:8000`. If the backend runs elsewhere, set the env var before starting Webots: `export RESCUE_API_URL=http://YOUR_BACKEND_HOST:8000`.
+
 ## API Usage
 
 The FastAPI backend can be used **programmatically** from any client. See [backend/README.md](backend/README.md) for full documentation, curl examples, and Python/JavaScript snippets.

@@ -33,10 +33,11 @@ class MavicStatus(BaseModel):
 
 
 class PositionUpdate(BaseModel):
-    """Position update from Webots controller (x, y, z in world coords)."""
+    """Position update from Webots controller (x, y, z in world coords). Optional yaw (rad) for move_to."""
     x: float = 0.0
     y: float = 0.0
     z: float = 0.0
+    yaw: Optional[float] = None
 
 
 # --- Tiago (Robot) Schemas ---

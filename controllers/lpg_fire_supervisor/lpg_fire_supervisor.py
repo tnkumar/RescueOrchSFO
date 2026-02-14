@@ -312,13 +312,25 @@ class RobotController:
                 pos = robot_node.getPosition()
                 status = {"position": {"x": pos[0], "y": pos[1], "z": pos[2]}}
                 self._report_ai_progress(robot_id, status)
-                # Also POST to mavic/tiago position endpoints for Robot Control UI
-                self._post_position_to_api(robot_id, tiago_id, pos[0], pos[1], pos[2])
+                # Yaw for Tiagos (for move_to driving): extract from 3x3 rotation matrix (world Z)
+                yaw = None
+                if tiago_id:
+                    try:
+                        # getOrientation() returns 3x3 row-major: R[0][0]=o[0], R[1][0]=o[3]; yaw = atan2(R[1][0], R[0][0])
+                        o = robot_node.getOrientation()
+                        if o and len(o) >= 4:
+                            yaw = math.atan2(float(o[3]), float(o[0]))
+                    except Exception:
+                        pass
+                self._post_position_to_api(robot_id, tiago_id, pos[0], pos[1], pos[2], yaw)
     
-    def _post_position_to_api(self, robot_id, tiago_id, x, y, z):
+    def _post_position_to_api(self, robot_id, tiago_id, x, y, z, yaw=None):
         """POST position to mavic/position or tiago/{id}/position for UI coordinates bar."""
         try:
-            data = json.dumps({"x": x, "y": y, "z": z}).encode()
+            payload = {"x": x, "y": y, "z": z}
+            if yaw is not None:
+                payload["yaw"] = yaw
+            data = json.dumps(payload).encode()
             if robot_id == "mavic":
                 url = f"{DEFAULT_API}/mavic/position"
             elif tiago_id:

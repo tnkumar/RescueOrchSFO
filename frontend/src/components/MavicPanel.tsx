@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { mavic } from '../api'
+import { mavic, supervisor } from '../api'
 import './MavicPanel.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
@@ -8,6 +8,9 @@ export function MavicPanel() {
   const [status, setStatus] = useState<{ connected: boolean; flying: boolean; altitude: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [active, setActive] = useState<Record<string, boolean>>({})
+  const [moveX, setMoveX] = useState('0')
+  const [moveY, setMoveY] = useState('0')
+  const [moveZ, setMoveZ] = useState('1')
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -120,6 +123,26 @@ export function MavicPanel() {
             <span className="alt-value">{status?.altitude.toFixed(1) ?? '0.0'}</span>
             <button onClick={() => mavic.altitude(Math.max(0, (status?.altitude ?? 0) - 0.5)).catch(() => setError('Command failed'))}>−</button>
           </div>
+        </div>
+
+        <div className="move-to-coords">
+          <label>Move to world position (m, absolute)</label>
+          <div className="coords-inputs">
+            <input type="number" step="any" placeholder="X" value={moveX} onChange={(e) => setMoveX(e.target.value)} aria-label="X" />
+            <input type="number" step="any" placeholder="Y" value={moveY} onChange={(e) => setMoveY(e.target.value)} aria-label="Y" />
+            <input type="number" step="any" placeholder="Z" value={moveZ} onChange={(e) => setMoveZ(e.target.value)} aria-label="Z (altitude)" />
+          </div>
+          <button
+            className="btn btn-move-to"
+            onClick={() => {
+              const x = parseFloat(moveX) || 0
+              const y = parseFloat(moveY) || 0
+              const z = parseFloat(moveZ) ?? 1
+              supervisor.teleport('mavic', { x, y, z }).then(() => setError(null)).catch((e) => setError(e?.message || 'Teleport failed'))
+            }}
+          >
+            Go to (X, Y, Z)
+          </button>
         </div>
       </div>
     </div>

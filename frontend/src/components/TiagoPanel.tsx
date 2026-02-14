@@ -10,9 +10,8 @@ interface TiagoPanelProps {
 type TabType = 'base' | 'head' | 'torso' | 'arms' | 'grippers' | 'actions'
 
 export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
-  const [status, setStatus] = useState<{ connected: boolean } | null>(null)
+  const [status, setStatus] = useState<{ connected: boolean; position?: { x?: number; y?: number; z?: number } } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [active, setActive] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<TabType>('base')
   
   // Head state
@@ -25,6 +24,8 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
   // Arm states
   const [selectedArm, setSelectedArm] = useState<'left' | 'right'>('right')
   const [armJoints, setArmJoints] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
+  const [moveX, setMoveX] = useState('0')
+  const [moveY, setMoveY] = useState('0')
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -41,16 +42,6 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
     const id = setInterval(fetchStatus, 2000)
     return () => clearInterval(id)
   }, [fetchStatus])
-
-  const sendVelocity = (linear_x: number, linear_y: number, angular: number) => {
-    tiago.velocity({ linear_x, linear_y, angular }, robotId).catch((e) => setError(e?.message || 'Command failed'))
-  }
-
-  const handleKey = (key: string, down: boolean, lx: number, ly: number, ang: number) => {
-    setActive(prev => ({ ...prev, [key]: down }))
-    const mult = down ? 1 : 0
-    sendVelocity(lx * mult, ly * mult, ang * mult)
-  }
 
   const handleHeadChange = (pan: number, tilt: number) => {
     setHeadPan(pan)
@@ -97,6 +88,37 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
 
       {error && <div className="error-banner">{error}</div>}
 
+      <div className="move-to-coords">
+        <div className="move-to-row move-to-header">
+          <span className="move-to-label">World position (absolute)</span>
+        </div>
+        <div className="move-to-row move-to-current">
+          <span className="move-to-label">Current:</span>
+          <span className="move-to-value">
+            {status?.position != null && status.position.x != null && status.position.y != null
+              ? `(${Number(status.position.x).toFixed(2)}, ${Number(status.position.y).toFixed(2)}) m`
+              : '—'}
+          </span>
+        </div>
+        <div className="move-to-row">
+          <span className="move-to-label">Move to:</span>
+          <input type="number" step="any" placeholder="X" value={moveX} onChange={(e) => setMoveX(e.target.value)} aria-label="X (world)" />
+          <input type="number" step="any" placeholder="Y" value={moveY} onChange={(e) => setMoveY(e.target.value)} aria-label="Y (world)" />
+          <button
+            className="btn btn-move-to"
+            onClick={() => {
+              const x = parseFloat(moveX) || 0
+              const y = parseFloat(moveY) || 0
+              tiago.moveTo(x, y, robotId)
+                .then(() => setError(null))
+                .catch((e) => setError(e?.message || 'Move failed'))
+            }}
+          >
+            Go
+          </button>
+        </div>
+      </div>
+
       <div className="tabs">
         {tabs.map(tab => (
           <button
@@ -117,47 +139,7 @@ export function TiagoPanel({ robotId, robotName }: TiagoPanelProps) {
                 Stop
               </button>
             </div>
-
-            <div className="joystick-grid">
-              <div />
-              <button
-                className={`joy-btn ${active.fwd ? 'active' : ''}`}
-                onMouseDown={() => handleKey('fwd', true, 0.5, 0, 0)}
-                onMouseUp={() => handleKey('fwd', false, 0, 0, 0)}
-                onMouseLeave={() => active.fwd && handleKey('fwd', false, 0, 0, 0)}
-              >
-                ▲
-              </button>
-              <div />
-              <button
-                className={`joy-btn ${active.left ? 'active' : ''}`}
-                onMouseDown={() => handleKey('left', true, 0, 0, 0.5)}
-                onMouseUp={() => handleKey('left', false, 0, 0, 0)}
-                onMouseLeave={() => active.left && handleKey('left', false, 0, 0, 0)}
-              >
-                ◀
-              </button>
-              <div className="center-cell" />
-              <button
-                className={`joy-btn ${active.right ? 'active' : ''}`}
-                onMouseDown={() => handleKey('right', true, 0, 0, -0.5)}
-                onMouseUp={() => handleKey('right', false, 0, 0, 0)}
-                onMouseLeave={() => active.right && handleKey('right', false, 0, 0, 0)}
-              >
-                ▶
-              </button>
-              <div />
-              <button
-                className={`joy-btn ${active.back ? 'active' : ''}`}
-                onMouseDown={() => handleKey('back', true, -0.5, 0, 0)}
-                onMouseUp={() => handleKey('back', false, 0, 0, 0)}
-                onMouseLeave={() => active.back && handleKey('back', false, 0, 0, 0)}
-              >
-                ▼
-              </button>
-              <div />
-            </div>
-            <p className="hint">Use buttons to move {displayName} base. Stop to halt immediately.</p>
+            <p className="hint">Move {displayName} only via &quot;Move to&quot; X, Y and <strong>Go</strong> above. Use Stop to halt.</p>
           </>
         )}
 

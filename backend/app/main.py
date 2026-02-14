@@ -1,9 +1,27 @@
 """Rescue Command Center - FastAPI Backend."""
 
+import logging
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import mavic, tiago, supervisor, mission
+# Log to console and file (backend/logs/app.log)
+LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / "app.log"
+LOG_FMT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(
+    level=logging.INFO,
+    format=LOG_FMT,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+    ],
+)
+
+from app.routers import mavic, tiago, supervisor, mission, trigger
 
 app = FastAPI(
     title="Rescue Command Center API",
@@ -25,6 +43,7 @@ app.include_router(mavic.router)
 app.include_router(tiago.router)
 app.include_router(supervisor.router)
 app.include_router(mission.router)
+app.include_router(trigger.router)
 
 
 @app.get("/")

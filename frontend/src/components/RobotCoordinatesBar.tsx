@@ -61,16 +61,17 @@ export function RobotCoordinatesBar() {
 
   return (
     <div className="robot-coordinates-bar">
-      <span className="coord-label">Mavic:</span>
+      <span className="coord-legend">World position (m):</span>
+      <span className="coord-label">Mavic</span>
       <span className="coord-value">{fmt(mavicPos)}</span>
       <span className="coord-sep">|</span>
-      <span className="coord-label">Tiago #1:</span>
+      <span className="coord-label">Tiago #1</span>
       <span className="coord-value">{fmt(tiago1Pos)}</span>
       <span className="coord-sep">|</span>
-      <span className="coord-label">Tiago #2:</span>
+      <span className="coord-label">Tiago #2</span>
       <span className="coord-value">{fmt(tiago2Pos)}</span>
       <span className="coord-sep">|</span>
-      <span className="coord-label">Tiago #3:</span>
+      <span className="coord-label">Tiago #3</span>
       <span className="coord-value">{fmt(tiago3Pos)}</span>
     </div>
   )

@@ -3,6 +3,7 @@ import { MavicPanel } from './components/MavicPanel'
 import { TiagoPanel } from './components/TiagoPanel'
 import { RobotCoordinatesBar } from './components/RobotCoordinatesBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { TriggerButton } from './components/TriggerButton'
 import MissionControl from './components/MissionControl'
 import './App.css'
 
@@ -14,6 +15,7 @@ function App() {
       <header className="header">
         <h1>Rescue Command Center</h1>
         <span className="badge">SFO</span>
+        <TriggerButton />
       </header>
 
       <nav className="tabs">

@@ -14,6 +14,12 @@
   color: var(--accent-red);
 }
 
+.robot-coordinates-bar .coord-legend {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+}
+
 .robot-coordinates-bar .coord-label {
   color: var(--text-secondary);
   font-weight: 500;

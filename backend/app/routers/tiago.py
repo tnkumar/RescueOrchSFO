@@ -48,9 +48,12 @@ def get_tiago_status(robot_id: str = "1"):
 
 @router.post("/{robot_id}/position")
 def update_tiago_position(robot_id: str, pos: PositionUpdate):
-    """Receive position update from Webots controller."""
+    """Receive position update from Webots controller (optional yaw for move_to driving)."""
     state = _get_state(robot_id)
-    state["position"] = {"x": round(pos.x, 4), "y": round(pos.y, 4), "z": round(pos.z, 4)}
+    state["position"] = {
+        "x": round(pos.x, 4), "y": round(pos.y, 4), "z": round(pos.z, 4),
+        **({"yaw": round(pos.yaw, 4)} if pos.yaw is not None else {}),
+    }
     return {"status": "ok", "robot_id": robot_id}
 
 
@@ -135,11 +138,44 @@ def tiago_stop(robot_id: str = "1"):
     return tiago_action(TiagoActionCommand(action="stop"), robot_id=robot_id)
 
 
+@router.post("/{robot_id}/move_to")
+def tiago_move_to(robot_id: str, x: float, y: float, speed: float = 0.75):
+    """
+    Command Tiago to drive to (x, y) at a constant speed instead of teleporting.
+    Controller will drive until within ~0.2 m, then call move_to_done.
+    """
+    if robot_id not in ("1", "2", "3"):
+        raise HTTPException(400, "robot_id must be 1, 2, or 3")
+    state = _get_state(robot_id)
+    state["last_command"] = {
+        "type": "move_to",
+        "data": {"target_x": float(x), "target_y": float(y), "speed": max(0.2, min(1.2, float(speed)))},
+    }
+    logger.info(f"📥 TIAGO-{robot_id} MOVE TO ({x:.2f}, {y:.2f}) at speed {speed:.2f} m/s")
+    return {"status": "ok", "robot_id": robot_id, "target": {"x": x, "y": y}, "speed": speed}
+
+
+@router.post("/{robot_id}/move_to_done")
+def tiago_move_to_done(robot_id: str):
+    """Called by Webots controller when Tiago has reached the move_to target."""
+    state = _get_state(robot_id)
+    if state.get("last_command", {}).get("type") == "move_to":
+        state["last_command"] = {"type": "velocity", "data": {"linear_x": 0, "linear_y": 0, "angular": 0}}
+        logger.info(f"📥 TIAGO-{robot_id} move_to completed (arrived)")
+    return {"status": "ok", "robot_id": robot_id}
+
+
 @router.get("/{robot_id}/command")
 @router.get("/command")
 def get_tiago_command(robot_id: str = "1"):
     """Get last command for Webots controller to poll. robot_id: 1, 2, or 3."""
     state = _get_state(robot_id)
     cmd = state.get("last_command") or {"type": "velocity", "data": {"linear_x": 0, "linear_y": 0, "angular": 0}}
-    logger.debug(f"🔄 Controller polling /tiago/{robot_id}/command → returning: {cmd.get('type')}")
+    # For move_to, include current position so controller can compute velocity (from supervisor-reported position)
+    if cmd.get("type") == "move_to" and state.get("position"):
+        out = dict(cmd)
+        out["current_position"] = state["position"]
+        logger.debug(f"🔄 TIAGO-{robot_id} poll → move_to with position {state['position']}")
+        return out
+    logger.debug(f"🔄 TIAGO-{robot_id} poll → {cmd.get('type')}")
     return cmd

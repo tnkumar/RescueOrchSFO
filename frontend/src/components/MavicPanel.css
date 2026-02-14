@@ -202,3 +202,44 @@
   min-width: 3ch;
   text-align: center;
 }
+
+.move-to-coords {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.move-to-coords label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.coords-inputs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.coords-inputs input {
+  width: 3rem;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.coords-inputs input:focus {
+  outline: none;
+  border-color: var(--accent-amber);
+}
+
+.btn-move-to {
+  background: var(--accent-amber);
+  color: var(--bg-dark);
+  font-size: 0.65rem;
+}

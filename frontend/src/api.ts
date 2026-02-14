@@ -21,6 +21,23 @@ export const mavic = {
   hover: () => fetchJson('/mavic/hover', { method: 'POST' }),
 };
 
+// Trigger: call LLM with Guidance to LLM prompt
+export const trigger = {
+  run: () =>
+    fetchJson<{ ok: boolean; response: string }>('/trigger/run', { method: 'POST' }),
+};
+
+// Supervisor API - teleport drone or Tiagos to coordinates (requires Webots supervisor running)
+export const supervisor = {
+  teleport: (target: 'mavic' | 'tiago1' | 'tiago2' | 'tiago3', position: { x: number; y: number; z: number }) =>
+    fetchJson('/supervisor/teleport', {
+      method: 'POST',
+      body: JSON.stringify({ target, position }),
+    }),
+  moveTiagoTo: (robotId: number, x: number, y: number) =>
+    fetchJson(`/supervisor/tiago/${robotId}/move_to?x=${x}&y=${y}`, { method: 'POST' }),
+};
+
 // Tiago API - supports multiple robots (1, 2, 3)
 export const tiago = {
   status: (robotId: string = '1') => fetchJson<{ connected: boolean; position?: unknown }>(`/tiago/${robotId}/status`),
@@ -37,4 +54,7 @@ export const tiago = {
   action: (action: 'stop' | 'home_arms' | 'open_gripper' | 'close_gripper', robotId: string = '1') =>
     fetchJson(`/tiago/${robotId}/action`, { method: 'POST', body: JSON.stringify({ action }) }),
   stop: (robotId: string = '1') => fetchJson(`/tiago/${robotId}/stop`, { method: 'POST' }),
+  /** Drive to (x, y) at a constant speed (no teleport). */
+  moveTo: (x: number, y: number, robotId: string = '1', speed?: number) =>
+    fetchJson(`/tiago/${robotId}/move_to?x=${x}&y=${y}${speed != null ? `&speed=${speed}` : ''}`, { method: 'POST' }),
 };

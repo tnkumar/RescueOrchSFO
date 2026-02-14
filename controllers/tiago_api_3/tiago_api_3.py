@@ -1,19 +1,21 @@
 """Tiago controller #3 that polls Rescue Command Center API and applies all commands."""
 
 import json
+import math
+import os
 import urllib.request
 import urllib.error
 from controller import Robot
 
-# Use 127.0.0.1 (more reliable than localhost on some systems)
-DEFAULT_API = "http://127.0.0.1:8000"
+# Use 127.0.0.1 (more reliable than localhost on some systems). Override with RESCUE_API_URL env.
+DEFAULT_API = os.environ.get("RESCUE_API_URL", "http://127.0.0.1:8000")
 WHEEL_RADIUS = 0.0985
 WHEEL_BASE = 0.4044  # distance between wheels
 
 def fetch_command(api_url, robot_id="3"):
     try:
         req = urllib.request.Request(f"{api_url}/tiago/{robot_id}/command")
-        with urllib.request.urlopen(req, timeout=0.5) as resp:
+        with urllib.request.urlopen(req, timeout=1.0) as resp:
             return json.loads(resp.read().decode())
     except (urllib.error.URLError, OSError, json.JSONDecodeError):
         return None
@@ -30,6 +32,26 @@ def send_position(api_url, robot_id, x, y, z):
             pass
     except (urllib.error.URLError, OSError):
         pass
+
+
+def post_move_to_done(api_url, robot_id):
+    """Notify backend that move_to target was reached."""
+    try:
+        req = urllib.request.Request(f"{api_url}/tiago/{robot_id}/move_to_done", data=b"{}", method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=0.5) as resp:
+            pass
+    except (urllib.error.URLError, OSError):
+        pass
+
+
+def _angle_norm(a):
+    """Normalize angle to [-pi, pi]."""
+    while a > math.pi:
+        a -= 2 * math.pi
+    while a < -math.pi:
+        a += 2 * math.pi
+    return a
 
 
 def main():
@@ -99,30 +121,40 @@ def main():
     except Exception:
         print("[tiago_api_3] ⚠ Astra depth camera not found")
 
-    # Grippers (if available) - Tiago++ uses different naming
+    # Grippers (if available) - Tiago++ proto uses right_hand_gripper_right_finger_joint / left_hand_gripper_right_finger_joint
     gripper_left = None
     gripper_right = None
-    try:
-        # Try standard Tiago++ gripper names
-        gripper_left = robot.getDevice("gripper_left_finger_joint")
-        gripper_right = robot.getDevice("gripper_right_finger_joint")
-        print("[tiago_api_3] ✓ Grippers initialized")
-    except:
+    for left_name, right_name in [
+        ("gripper_left_finger_joint", "gripper_right_finger_joint"),
+        ("left_hand_gripper_right_finger_joint", "right_hand_gripper_right_finger_joint"),
+    ]:
+        try:
+            gripper_left = robot.getDevice(left_name)
+            gripper_right = robot.getDevice(right_name)
+            print(f"[tiago_api_3] ✓ Grippers initialized ({left_name}, {right_name})")
+            break
+        except Exception:
+            pass
+    if gripper_left is None and gripper_right is None:
         print("[tiago_api_3] ⚠ Grippers not available on this model")
-        pass
 
-    # Get API URL from controller args (optional)
+    # Get API URL: controller args > RESCUE_API_URL env > default
     try:
         args = robot.getControllerArguments()
         api_url = (args[0] if isinstance(args, (list, tuple)) and args else args or DEFAULT_API) or DEFAULT_API
     except Exception:
         api_url = DEFAULT_API
+    if not api_url.startswith("http"):
+        api_url = DEFAULT_API
 
     poll_counter = 0
-    pos_counter = 0
     cmd = None
     linear_x = linear_y = angular = 0.0
     api_connected = False
+    last_torso_height = 0.0
+    last_gripper_left = 0.0
+    last_gripper_right = 0.0
+    last_move_to_target = None
 
     # Home positions for arms - adjusted to be within joint limits
     arm_home_positions = {
@@ -130,10 +162,12 @@ def main():
         "left": [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     }
 
-    print(f"[tiago_api_3] Polling API at {api_url}/tiago/3/command")
+    print(f"[tiago_api_3] Polling API at {api_url}/tiago/3/command (ensure backend is running: ./run_backend.sh)")
 
+    warn_counter = 0
     while robot.step(timestep) != -1:
         poll_counter += 1
+        warn_counter += 1
 
         # Poll API every timestep (~8ms) for immediate response
         if poll_counter >= 1:
@@ -142,6 +176,9 @@ def main():
             if cmd and not api_connected:
                 api_connected = True
                 print("[tiago_api_3] Connected to Rescue Command Center API")
+            elif not cmd and not api_connected and warn_counter >= 250:
+                warn_counter = 0
+                print("[tiago_api_3] ⚠ Backend not reachable at", api_url, "- start backend with ./run_backend.sh")
 
             if cmd:
                 cmd_type = cmd.get("type")
@@ -172,9 +209,9 @@ def main():
                     head_2.setPosition(h2)
                     print(f"[tiago_api_3] 👀 HEAD command: pan={h1:.2f}, tilt={h2:.2f}")
                 elif cmd_type == "torso":
-                    height = data.get("height", 0)
-                    torso_lift.setPosition(height)
-                    print(f"[tiago_api_3] ⬆️ TORSO command: height={height:.2f}m")
+                    last_torso_height = max(0.0, data.get("height", 0))
+                    torso_lift.setPosition(last_torso_height)
+                    print(f"[tiago_api_3] ⬆️ TORSO command: height={last_torso_height:.2f}m")
                 elif cmd_type == "arm":
                     arm_side = data.get("arm", "right")
                     joint_positions = data.get("joint_positions")
@@ -186,14 +223,53 @@ def main():
                 elif cmd_type == "gripper":
                     arm_side = data.get("arm", "right")
                     action = data.get("action", "close")
-                    gripper = gripper_right if arm_side == "right" else gripper_left
-                    if gripper:
-                        if action == "open":
-                            gripper.setPosition(0.045)  # Open position
-                            print(f"[tiago_api_3] ✋ GRIPPER command: {arm_side} → OPEN")
-                        elif action == "close":
-                            gripper.setPosition(0.0)  # Closed position
-                            print(f"[tiago_api_3] ✊ GRIPPER command: {arm_side} → CLOSE")
+                    pos = max(0.0, 0.045 if action == "open" else 0.0)
+                    if arm_side == "right" and gripper_right is not None:
+                        last_gripper_right = pos
+                        gripper_right.setPosition(pos)
+                        print(f"[tiago_api_3] ✋ GRIPPER command: {arm_side} → {'OPEN' if action == 'open' else 'CLOSE'}")
+                    elif arm_side == "left" and gripper_left is not None:
+                        last_gripper_left = pos
+                        gripper_left.setPosition(pos)
+                        print(f"[tiago_api_3] ✋ GRIPPER command: {arm_side} → {'OPEN' if action == 'open' else 'CLOSE'}")
+                elif cmd_type == "move_to":
+                    pos = cmd.get("current_position") or {}
+                    if "x" not in pos and "y" not in pos:
+                        linear_x = linear_y = angular = 0.0
+                    else:
+                        cx = pos.get("x", 0.0)
+                        cy = pos.get("y", 0.0)
+                        yaw = pos.get("yaw", 0.0)
+                        tx = data.get("target_x", cx)
+                        ty = data.get("target_y", cy)
+                        target_key = (round(tx, 2), round(ty, 2))
+                        if last_move_to_target != target_key:
+                            for i, p in enumerate(arm_home_positions["right"]):
+                                arm_right_joints[i].setPosition(p)
+                            for i, p in enumerate(arm_home_positions["left"]):
+                                arm_left_joints[i].setPosition(p)
+                            last_move_to_target = target_key
+                            print("[tiago_api_3]   → Arms to home before move")
+                        speed = max(0.2, min(1.2, float(data.get("speed", 0.75))))
+                        dx = tx - cx
+                        dy = ty - cy
+                        dist = math.sqrt(dx * dx + dy * dy)
+                        if dist < 0.2:
+                            linear_x = linear_y = angular = 0.0
+                            last_move_to_target = None
+                            post_move_to_done(api_url, "3")
+                            print("[tiago_api_3] 🎯 move_to arrived")
+                        else:
+                            desired = math.atan2(dy, dx)
+                            angle_err = _angle_norm(desired - yaw)
+                            if abs(angle_err) >= 0.12:
+                                angular = max(-0.8, min(0.8, 1.0 * angle_err))
+                                linear_x = 0.0
+                                linear_y = 0.0
+                            else:
+                                angular = 0.0
+                                linear_x = speed
+                                linear_y = 0.0
 
         # Differential drive: v_left = linear - angular * L/2, v_right = linear + angular * L/2
         # Convert m/s to rad/s: omega = v / r
@@ -203,13 +279,14 @@ def main():
         wheel_left.setVelocity(max(-10, min(10, left_vel)))
         wheel_right.setVelocity(max(-10, min(10, right_vel)))
 
-        # Send position to backend for UI (~4 times/sec)
-        pos_counter += 1
-        if pos_counter >= 31:
-            pos_counter = 0
-            pos = robot.getPosition()
-            if pos and len(pos) >= 3:
-                send_position(api_url, "3", pos[0], pos[1], pos[2])
+        # Re-apply torso and gripper positions >= 0 every step to avoid "too low requested position"
+        torso_lift.setPosition(max(0.0, last_torso_height))
+        if gripper_left is not None:
+            gripper_left.setPosition(max(0.0, last_gripper_left))
+        if gripper_right is not None:
+            gripper_right.setPosition(max(0.0, last_gripper_right))
+
+        # Position is reported to the backend by the supervisor; Robot has no getPosition() in Webots Python API
 
 
 if __name__ == "__main__":
